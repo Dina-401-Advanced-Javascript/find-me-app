@@ -1,40 +1,75 @@
-import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, Button, View, FlatList, Linking } from 'react-native';
 import * as Contacts from 'expo-contacts';
 import * as Permissions from 'expo-permissions';
+import * as Location from 'expo-location';
+// import SendSMS from 'react-native-sms';
+import * as SMS from 'expo-sms';
 
 export default function App() {
-  const [name, setName] = useState('');
   const [contacts, setContacts] = useState([]);
-  const [permissions, setPermissions] = useState(false);
+  // const [permissions, setPermissions] = useState([]);
+  const [location, setLocation] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
 
-  const call = (contact) => {
-    //call the contact
-    console.log({ contact });
+  const sendEmail = async (contact) => {
+    //email the contact my location
+    if (contact.emails) {
+      let email = contact.emails[0].email;
+      let subject = 'My location through Find Me app';
+      let currentLocation = `Latitude: ${location.coords.latitude} Longitude: ${location.coords.longitude}`;
+      console.log(currentLocation);
+      let link = `mailto:${email}?subject=${subject}&body=${currentLocation}`;
+      Linking.canOpenURL(link)
+        .then(supported => Linking.openURL(link))
+        .catch(console.error);
+    }
+  }
+  const sendMessage = async (contact) => {
+    //text the contact my location
+    const isAvailable = await SMS.isAvailableAsync();
     let phoneNumber = contact.phoneNumbers[0].number.replace(/[\(\)\-\s+]/g, '');
-    console.log({ phoneNumber });
-    let link = `tel:${phoneNumber}`;
-    Linking.canOpenURL(link)
-      .then(supported => Linking.openURL(link))
-      .catch(console.error);
+    console.log(location);
+    let currentLocation = `Longitude: ${location.coords.longitude} & Latitude: ${location.coords.latitude} `
+    if (isAvailable) {
+      // do your SMS stuff here
+      const { result } = await SMS.sendSMSAsync(
+        [phoneNumber],
+        'My location is: ' + currentLocation
+      );
+    } else {
+      console.log('SMS is not available on this device.');
+    }
   }
 
-  const showContacts = async () => {
-    //get all my phone contacts
-    const contactList = await Contacts.getContactsAsync();
-    contactList.data.forEach(contact => console.log(contact.name));
-    setContacts(contactList.data);
+  const getContactsAsync = async () => {
+    // permissions returns only for location permissions on iOS and under certain conditions, see Permissions.LOCATION
+    const { status } = await Permissions.askAsync(Permissions.CONTACTS);
+    if (status === 'granted') {
+      const contactList = await Contacts.getContactsAsync();
+      // console.log(contactList);
+      setContacts(contactList.data);
+      return contactList;
+    } else {
+      setErrorMessage(errorMessage + 'Permission to access contacts was denied. ');
+    }
+  }
+
+  async function getLocationAsync() {
+    // permissions returns only for location permissions on iOS and under certain conditions, see Permissions.LOCATION
+    const { status } = await Permissions.askAsync(Permissions.LOCATION);
+    if (status === 'granted') {
+      setLocation(await Location.getCurrentPositionAsync({ enableHighAccuracy: true }));
+      // console.log(location);
+      return location;
+    } else {
+      setErrorMessage(errorMessage + 'Permission to access location was denied. ');
+    }
   }
 
   const getPermissions = async () => {
-    const { status } = await Permissions.askAsync(Permissions.CONTACTS);
-    console.log({ status });
-    if (status === 'granted') {
-      setPermissions(true);
-    } else {
-      setPermissions(false);
-    }
+    getContactsAsync();
+    getLocationAsync();
   }
 
   useEffect(() => {
@@ -43,21 +78,17 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-
-      <Text>{'\n'}  {'\n'} {'\n'}  {'\n'}Welcome and hello world {name} </Text>
-      <Button
-        onPress={() => setName('Bob')}
-        title="Click me!"
-      />
-      <Button onPress={showContacts}
-        title="show contacts"></Button>
+      <Text style={styles.header}>Find Me</Text>
+      <Text>{errorMessage}</Text>
       <FlatList
+        style={styles.flatList}
         data={contacts}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (item.name ? <Button title={item.name} onPress={() => call(item)} /> : null)}>
-
+        renderItem={({ item }) => (
+          item.name ?
+            <Text style={styles.item}>{'\n'} {item.name} {item.phoneNumbers ? <Button style={styles.button} title="SMS" onPress={async () => await sendMessage(item)} /> : null} {item.emails ? <Button style={styles.button} title="Email" onPress={async () => await sendEmail(item)} /> : null}</Text>
+            : null)}>
       </FlatList>
-      <StatusBar style="auto" />
     </View>
   );
 }
@@ -66,7 +97,36 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center'
+    alignItems: 'stretch',
+    justifyContent: 'center',
+    width: '100%'
   },
+  button: {
+    backgroundColor: '#eee',
+    color: '#000'
+  },
+  tableHeader: {
+    fontSize: 18,
+    padding: 5
+  },
+  header: {
+    marginTop: 16,
+    paddingVertical: 5,
+    paddingTop: 45,
+    // borderWidth: 4,
+    // borderColor: "#20232a",
+    // borderRadius: 6,
+    backgroundColor: '#fff', //"#61dafb",
+    color: "#20232a",
+    textAlign: "center",
+    fontSize: 30,
+    fontWeight: "bold",
+    textDecorationLine: "underline"
+  },
+  item: {
+    fontSize: 16,
+    paddingHorizontal: 5,
+    textAlign: 'left',
+    color: '#20232a'
+  }
 });

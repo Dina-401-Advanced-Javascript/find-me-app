@@ -5,6 +5,7 @@ import * as Permissions from 'expo-permissions';
 import * as Location from 'expo-location';
 // import SendSMS from 'react-native-sms';
 import * as SMS from 'expo-sms';
+import qs from 'qs';
 
 export default function App() {
   const [contacts, setContacts] = useState([]);
@@ -17,9 +18,17 @@ export default function App() {
     if (contact.emails) {
       let email = contact.emails[0].email;
       let subject = 'My location through Find Me app';
-      let currentLocation = `Latitude: ${location.coords.latitude} Longitude: ${location.coords.longitude}`;
-      console.log(currentLocation);
-      let link = `mailto:${email}?subject=${subject}&body=${currentLocation}`;
+      let body = `Here is my current location: https://www.google.com/maps/search/?api=1&query=${location.coords.latitude},${location.coords.longitude}`;
+
+      const query = qs.stringify({
+        subject: subject,
+        body: body
+      });
+
+      console.log(query);
+      let link = `mailto:${email}?${query}`;
+      console.log(link);
+
       Linking.canOpenURL(link)
         .then(supported => Linking.openURL(link))
         .catch(console.error);
@@ -30,12 +39,13 @@ export default function App() {
     const isAvailable = await SMS.isAvailableAsync();
     let phoneNumber = contact.phoneNumbers[0].number.replace(/[\(\)\-\s+]/g, '');
     console.log(location);
-    let currentLocation = `Longitude: ${location.coords.longitude} & Latitude: ${location.coords.latitude} `
+    let currentLocation = `Here is my current location: https://www.google.com/maps/search/?api=1&query=${location.coords.latitude},${location.coords.longitude}`;
+    //let currentLocation = `Longitude: ${location.coords.longitude} & Latitude: ${location.coords.latitude} `
     if (isAvailable) {
       // do your SMS stuff here
       const { result } = await SMS.sendSMSAsync(
         [phoneNumber],
-        'My location is: ' + currentLocation
+        currentLocation
       );
     } else {
       console.log('SMS is not available on this device.');

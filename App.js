@@ -9,7 +9,6 @@ import qs from 'qs';
 
 export default function App() {
   const [contacts, setContacts] = useState([]);
-  // const [permissions, setPermissions] = useState([]);
   const [location, setLocation] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
 
@@ -40,7 +39,7 @@ export default function App() {
     let phoneNumber = contact.phoneNumbers[0].number.replace(/[\(\)\-\s+]/g, '');
     console.log(location);
     let currentLocation = `Here is my current location: https://www.google.com/maps/search/?api=1&query=${location.coords.latitude},${location.coords.longitude}`;
-    //let currentLocation = `Longitude: ${location.coords.longitude} & Latitude: ${location.coords.latitude} `
+
     if (isAvailable) {
       // do your SMS stuff here
       const { result } = await SMS.sendSMSAsync(
